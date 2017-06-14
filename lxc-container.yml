@@ -1,0 +1,35 @@
+## Creates, starts and configure for ssh access a lxc container.
+
+- hosts: localhost
+  connection: local
+  vars:
+    ip: "192.168.122.30/24"
+    name: test
+    password: test
+  tasks:
+  - name: Create and start container
+    register: container
+    lxc_container:
+      name: "{{name}}"
+      container_log: false
+      template: download
+      state: started
+      template_options: --dist ubuntu --release xenial --arch amd64
+      container_config:
+      - "lxc.network.ipv4={{ip}}"
+
+  - name: waiting for connection container
+    when: container.changed
+    shell: 'sleep 30'
+
+  - name: install ssh
+    shell: 'lxc-attach -n {{name}} -- apt install -y ssh'
+
+  - name: configure ssh for password login
+    shell: 'lxc-attach -n {{name}} -- sed -i s/prohibit-password/yes/g /etc/ssh/sshd_config'
+
+  - name: restart ssh
+    shell: 'lxc-attach -n {{name}} -- systemctl restart ssh'
+
+  - name: define password ssh access
+    shell: 'lxc-attach -n {{name}} -- bash -c "echo root:{{password}} | chpasswd"'
