@@ -1,0 +1,29 @@
+- hosts: localhost
+  connection: local
+  tasks:
+
+  - name: generating image
+    docker_image:
+      path: .
+      name: "ubuntu16-systemd"
+      state: present
+      force: true
+
+  - name: generating container
+    docker_container:
+      name: "test"
+      image: "ubuntu16-full"
+      state: started
+      restart: yes
+      restart_policy: always
+      volumes:
+      - "/tmp:/root"
+      # - ../src:/src:rw
+      # capabilities:
+      # - "SYS_ADMIN"
+      cleanup: yes
+      purge_networks: yes
+      networks:
+      - name: dockerlan
+        ipv4_address: "180.0.0.11"
+      privileged: yes
