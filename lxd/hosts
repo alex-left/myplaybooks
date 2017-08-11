@@ -1,0 +1,1 @@
+bspsystems ansible_connection=lxd ansible_host=bspsystems

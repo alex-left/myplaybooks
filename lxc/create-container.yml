@@ -1,0 +1,68 @@
+- hosts: localhost
+  connection: local
+
+  vars:
+    install_extras: yes
+    known_hosts_file: "/home/alex/.ssh/known_hosts"
+    dist: "ubuntu"
+    release: "trusty"
+    ip: "192.168.122.11/24"
+    name: test
+    password: test
+    size: 5G
+
+  tasks:
+  - name: Create and start container
+    register: container
+    lxc_container:
+      fs_size: "{{size}}"
+      name: "{{name}}"
+      container_log: false
+      template: "download"
+      state: started
+      template_options: "--dist {{dist}} --release {{release}} --arch amd64"
+      container_config:
+      - "lxc.network.ipv4={{ip | default(omit)}}"
+
+  - name: waiting for connection container
+    when: container.changed
+    shell: 'sleep 30'
+
+  - name: install ssh
+    shell: 'lxc-attach -n {{name}} -- apt install -y ssh'
+
+  - name: configure ssh for password login
+    shell: 'lxc-attach -n {{name}} -- sed -E -i s/{{item}}/yes/g /etc/ssh/sshd_config'
+    with_items:
+    - prohibit-password
+    - without-password
+
+  - name: restart ssh
+    shell: 'lxc-attach -n {{name}} -- service ssh restart'
+
+  - name: enable ssh access
+    shell: 'lxc-attach -n {{name}} -- bash -c "echo root:{{password}} | chpasswd"'
+
+  - name: install extra soft
+    when: install_extras
+    shell: 'lxc-attach -n {{name}} -- apt install -y {{ item }}'
+    with_items:
+    - ssh
+    - python
+    - apt-transport-https
+    - software-properties-common
+    - curl
+    - wget
+    - language-pack-en
+    - language-pack-es
+    - sudo
+    - rsync
+    - git
+    - vim
+    - python-pip
+    - python-dev
+    - build-essential
+    - ansible
+
+  - name: restore hostkey
+    shell: 'ssh-keygen -f "{{known_hosts_file}}" -R {{ip | default(omit)}}'
